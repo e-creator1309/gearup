@@ -1,19 +1,3 @@
-# GearUP Game Booster — Patched APK
-
-> **Patched build:** `gearup_v3_patched.apk`  
-> Signature check bypassed · Root bypass · All validation patches applied
-
----
-
-## Install
-
-```bash
-adb install -r gearup_v3_patched.apk
-```
-
-If upgrading from v2: uninstall first if you hit a signature mismatch (signing key changed between patch sessions).
-
----
 
 ## How GearUP Actually Boosts Your Internet in Games
 
