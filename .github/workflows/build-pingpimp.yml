@@ -1,0 +1,96 @@
+name: Build PingPimp v9.1 Magisk Module
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-pingpimp.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PingPimp v9.1
+        uses: actions/checkout@v4
+        with:
+          repository: fuckyoustan/PingPimp
+          ref: v9.1
+          path: pingpimp
+
+      - name: Setup Android NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK 27
+        run: |
+          echo "y" | sdkmanager "ndk;27.0.12077973" 2>&1 | tail -5
+          echo "NDK_PATH=$ANDROID_SDK_ROOT/ndk/27.0.12077973" >> $GITHUB_ENV
+
+      - name: Compile PingPimp binary (arm64-v8a)
+        run: |
+          CC=$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang
+          $CC \
+            -O2 \
+            -static \
+            -o pingpimp/src/system/bin/PingPimp \
+            pingpimp/src/system/bin/PingPimp.c
+          echo "=== Binary info ==="
+          file pingpimp/src/system/bin/PingPimp
+          ls -lh pingpimp/src/system/bin/PingPimp
+
+      - name: Fix module.prop version
+        run: |
+          sed -i 's/version=.*/version=v9.1/' pingpimp/src/module.prop
+          sed -i 's/versionCode=.*/versionCode=91/' pingpimp/src/module.prop
+          cat pingpimp/src/module.prop
+
+      - name: Package Magisk module zip
+        run: |
+          cd pingpimp/src
+          zip -r9 ../../PingPimp_v9.1.zip \
+            META-INF/ \
+            customize.sh \
+            module.prop \
+            service.sh \
+            system.prop \
+            uninstall.sh \
+            system/ \
+            webroot/
+          cd ../..
+          echo "=== Zip contents ==="
+          unzip -l PingPimp_v9.1.zip
+          echo "=== Size ==="
+          ls -lh PingPimp_v9.1.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PingPimp_v9.1
+          path: PingPimp_v9.1.zip
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: pingpimp-v9.1
+          name: PingPimp v9.1 (Built)
+          body: |
+            ## PingPimp v9.1 — Magisk Module
+
+            Built from source: https://github.com/fuckyoustan/PingPimp/tree/v9.1
+
+            ### Install
+            1. Flash via Magisk / KernelSU / APatch
+            2. Reboot
+            3. Open the WebUI from Magisk module list
+
+            ### What it does
+            - fq_codel queue discipline on all interfaces (kills bufferbloat)
+            - WiFi power-save off
+            - DSCP/iptables packet prioritization for selected apps
+            - TCP tuning presets (Game / Stream / Download / Browse)
+            - App bandwidth isolation (jail mode)
+            - Runs as a daemon, auto-detects interface changes
+          files: PingPimp_v9.1.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
